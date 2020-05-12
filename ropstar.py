@@ -162,9 +162,10 @@ class Ropstar():
             p.send(self.args.magic) # or sendline?
         p.sendline(payload)
         try:
-            result = p.recvall()            
+            result = p.recvall()
+            result_str = result.decode('utf-8')
             pattern = "(START0[xX][0-9a-fA-F]{4,8}END)"
-            m = re.search(pattern, result)          
+            m = re.search(pattern, result_str)          
             if m:
                 result = m.groups(1)[0]
                 log.info('FmtStr leak: '+result.strip("START").strip("END"))        

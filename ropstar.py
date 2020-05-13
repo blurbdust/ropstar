@@ -32,6 +32,7 @@ class Ropstar():
         parser.add_argument('-remote_offset', help='get offset remotely via observing responses (often required with canaries)', action='store_true')
         parser.add_argument('-state', help='canary,rbp,rip (comma seperated)')
         parser.add_argument('-plugins', help='run custom plugins')                                                                                                          
+        parser.add_argument('-env', help='enviroment variables to pass to target binary (comma seperated if multiple) e.g. DEBUG = 1,PWN = true')                                                                                                          
 
         self.args = parser.parse_args()
         self.home = pwd.getpwuid(os.getuid())[0]
@@ -72,7 +73,7 @@ class Ropstar():
         self.encodings = [lambda x: x, lambda x: rot13(x)]
         self.success_marker = ''
         # some config options       
-        self.pattern_length = 2000
+        self.pattern_length = 2148
         self.magic_newline = False
         if self.args.magic and "\\n" in self.args.magic:
             self.args.magic = self.args.magic.replace("\\n","")
@@ -119,7 +120,13 @@ class Ropstar():
         else:
             log.info("Using local target")  
             # env={'LD_PRELOAD': os.path.join(os.getcwd(), 'libc.so.6')}
-            p = process(self.bname)
+            if (self.args.env):
+                env = {}
+                for a in self.args.env.split(","):
+                    env.update({a.split("=")[0].strip() : a.split("=")[1].strip()})
+                p = process(self.bname, env=env)
+            else:
+                p = process(self.bname)
         return p
 
 
@@ -134,7 +141,7 @@ class Ropstar():
 
         if self.args.magic:
             if not self.magic_newline:
-                payload = self.args.magic + payload
+                payload = b''.join([self.args.magic.encode('ascii'), payload])
             else:
                 p.sendline(self.args.magic)
         if self.args.xor:
@@ -395,7 +402,7 @@ class Ropstar():
                     if len(leak) == 0:
                         continue
                     log.info("Using "+version)
-                    libc_path = f"{self.leak.libcdb_path}libs/{version}/libc.so.6"
+                    libc_path = f"{self.leak.libcdb_path}db/{version}.so"
                     print(libc_path)
                     try:
                         libc = ELF(libc_path)

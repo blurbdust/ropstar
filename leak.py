@@ -11,16 +11,16 @@ class Leak():
         self.arch = self.ropstar.arch
         self.libcdb_path = self.ropstar.home+'/tools/libc-database/'
         self.leak_parse_amd64 = {
-          'puts': lambda line: b''.join([line.strip()[:6], b'\x00\x00']),
-          'printf': lambda line: line.strip()[:6]+ '\x00\x00',
-          'system': lambda line: b''.join([line.strip()[7:(7+6)], b'\x00']),
-          'write': lambda line: line,
+            'puts': lambda line: self.parse_puts(line),
+            'printf': lambda line: self.parse_printf(line),
+            'system': lambda line: self.parse_system(line),
+            'write': lambda line: self.parse_write(line),
         }
         self.leak_parse_i386 = {
-          'puts': lambda line: line.strip()[:4],
-          'printf': lambda line: line.strip()[:4],
-          'system': lambda line: line.strip()[7:(7+4)].ljust(4, '\x00'),
-          'write': lambda line: line,
+            'puts': lambda line: self.parse_puts(line),
+            'printf': lambda line: self.parse_printf(line),
+            'system': lambda line: self.parse_system(line),
+            'write': lambda line: self.parse_write(line),
         }
         if self.ropstar.arch == 'amd64':
             self.px = lambda x : p64(x)
@@ -32,6 +32,31 @@ class Leak():
         for i in range(0x100):
             self.bytes += chr(i)
         self.temp_payload = ''
+
+    def parse_puts(self, line):
+        if (self.arch == "amd64"):
+            if ("bytes" in str(type(line))):
+                return b''.join([line.strip()[:6], b'\x00\x00'])
+            return line.strip()[:6] + '\x00\x00'
+        return line.strip()[:4]
+    def parse_printf(self, line):
+        if (self.arch == "amd64"):
+            if ("bytes" in str(type(line))):
+                return b''.join([line.strip()[:6], b'\x00\x00'])
+            return line.strip()[:6] + '\x00\x00'
+        return line.strip()[:4]
+    def parse_system(self, line):
+        if (self.arch == "amd64"):
+            if ("bytes" in str(type(line))):
+                return b''.join([line.strip()[7:(7+6)], b'\x00'])
+            return line.strip()[7:(7+6)] + '\x00'
+        if ("bytes" in str(type(line))):
+            return b"".join[line.strip()[7:(7+4)].ljust(4, b'\x00')]
+        return line.strip()[7:(7+4)].ljust(4, '\x00')
+
+    def parse_write_x64(self, line):
+        log.info(str(type(line)))
+        return line
 
 
     def ident_libc(self, leak):
@@ -50,6 +75,10 @@ class Leak():
             for version in out.split('\n'):
                 m = re.search(pattern, version)
                 if m:
+                    if 'i386' in m.groups(1)[0] and self.arch == 'amd64':
+                        continue
+                    elif 'amd64' in m.groups(1)[0] and self.arch == 'i386':
+                        continue
                     versions.append(m.groups(1)[0])
             log.info(versions)
             return versions

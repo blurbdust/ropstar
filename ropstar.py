@@ -33,6 +33,9 @@ class Ropstar():
         parser.add_argument('-state', help='canary,rbp,rip (comma seperated)')
         parser.add_argument('-plugins', help='run custom plugins')                                                                                                          
         parser.add_argument('-env', help='enviroment variables to pass to target binary (comma seperated if multiple) e.g. DEBUG = 1,PWN = true')                                                                                                          
+        parser.add_argument('-exp_hint', help='exploitation mode hint, in case works locally but not on server e.g "gets(bss); system(bss)"')                                                                                                          
+        parser.add_argument('-leak_hint', help='leak hint, in case works locally but not on server e.g "puts"')                                                                                                          
+        parser.add_argument('-libc_hint', help='libc hint, in case works locally but not on server e.g "libc6_2.31-0ubuntu9_amd64"')                                                                                                          
 
         self.args = parser.parse_args()
         self.home = pwd.getpwuid(os.getuid())[0]
@@ -121,10 +124,10 @@ class Ropstar():
             log.info("Using local target")  
             # env={'LD_PRELOAD': os.path.join(os.getcwd(), 'libc.so.6')}
             if (self.args.env):
-                env = {}
+                env_ = os.environ
                 for a in self.args.env.split(","):
-                    env.update({a.split("=")[0].strip() : a.split("=")[1].strip()})
-                p = process(self.bname, env=env)
+                    env_.update({a.split("=")[0].strip() : a.split("=")[1].strip()})
+                p = process(self.bname, env=env_)
             else:
                 p = process(self.bname)
         return p
@@ -393,8 +396,18 @@ class Ropstar():
             log.info("Getting libc version")
             versions = self.leak.ident_libc(leak)
             exploits = [self.exploit.bss, self.exploit.bss_execve, self.exploit.dup2, self.exploit.default]
+
             for version in versions:
                 for exploit in exploits:
+                    if (self.args.exp_hint):
+                        if (self.args.exp_hint == "gets(bss); system(bss)" and exploit != self.exploit.bss):
+                            continue
+                        if (self.args.exp_hint == "gets(bss); execve(bss,0,0)" and exploit != self.exploit.bss_execve):
+                            continue
+                        if (self.args.exp_hint == "dup2,system()" and exploit != self.exploit.dup2):
+                            continue
+                        if (self.args.exp_hint == "default" and exploit != self.exploit.default):
+                            continue
 
                     p = self.connect()
                     leak = self.smart_leak(p)
